@@ -1,3 +1,0 @@
-# !/bin/bash
-
-g++ src/audio_data/audio_data.cc -c -std=c++20 -o lib/objects/audio_data.o

@@ -1,7 +1,8 @@
 #include <string>
 #include <fstream>
 
-#include "../include/audio_data.h"
+#include "audio_data.h"
+#include "audio_format.h"
 
 
 #define AIFF_CHAR       char
@@ -125,46 +126,53 @@ void WriteHeader(const AIFF_HEADER &header, std::ofstream &file) {
     WriteRev(file, &header.block_size);
 }
 
-extern "C" AudioData AudioRead(const char *filename) {
-    std::ifstream file {filename, std::ios::binary};
-    AIFF_HEADER header {ReadHeader(file)};
-    AudioData ad(
-        header.num_channels,
-        static_cast<std::uint32_t>(header.sample_rate),
-        header.bits_per_sample,
-        8 * (header.data_ck_size - 2 * sizeof(AIFF_LONG)) / header.num_channels / header.bits_per_sample
-    );
-    std::size_t frame_size  = header.bits_per_sample / 8;
-    for (std::size_t offset = 0; offset < ad.data.size(); offset += frame_size) {
-        ReadRev(file, &ad.data[offset], frame_size);
+class AIFF : public AudioFormat {
+public:
+    AudioData AudioRead(const char *filename) {
+        std::ifstream file {filename, std::ios::binary};
+        AIFF_HEADER header {ReadHeader(file)};
+        AudioData ad(
+            header.num_channels,
+            static_cast<std::uint32_t>(header.sample_rate),
+            header.bits_per_sample,
+            8 * (header.data_ck_size - 2 * sizeof(AIFF_LONG)) / header.num_channels / header.bits_per_sample
+        );
+        std::size_t frame_size  = header.bits_per_sample / 8;
+        for (std::size_t offset = 0; offset < ad.data.size(); offset += frame_size) {
+            ReadRev(file, reinterpret_cast<char*>(&ad.data[offset]), frame_size);
+        }
+        return ad;
     }
-    return ad;
-}
 
-extern "C" void AudioWrite(const AudioData &ad, const char *filename) {
-    AIFF_HEADER header {
-        {'F', 'O', 'R', 'M'},
-        // sizeof(AIFF_ID) * 3 + sizeof(AIFF_LONG) * 2 + sizeof(AIFF_ULONG) * 3 + sizeof(AIFF_SHORT) * 2 + 10ul + std::uint64_t{ad.data.size()}, // instead of sizeof(AIFF_EXTENDED)
-        46 + ad.data.size(),
-        {'A', 'I', 'F', 'F'},
-        {'C', 'O', 'M', 'M'},
-        18,
-        ad.num_channels,
-        ad.number_samples,
-        ad.bits_per_sample,
-        static_cast<AIFF_EXTENDED>(ad.sample_rate),
-        {'S', 'S', 'N', 'D'},
-        ad.data.size() + sizeof(AIFF_ULONG) * 2,
-        0,
-        0
-    };
+    void AudioWrite(const AudioData &ad, const char *filename) {
+        AIFF_HEADER header {
+            {'F', 'O', 'R', 'M'},
+            // sizeof(AIFF_ID) * 3 + sizeof(AIFF_LONG) * 2 + sizeof(AIFF_ULONG) * 3 + sizeof(AIFF_SHORT) * 2 + 10ul + std::uint64_t{ad.data.size()}, // instead of sizeof(AIFF_EXTENDED)
+            46 + ad.data.size(),
+            {'A', 'I', 'F', 'F'},
+            {'C', 'O', 'M', 'M'},
+            18,
+            ad.num_channels,
+            ad.number_samples,
+            ad.bits_per_sample,
+            static_cast<AIFF_EXTENDED>(ad.sample_rate),
+            {'S', 'S', 'N', 'D'},
+            ad.data.size() + sizeof(AIFF_ULONG) * 2,
+            0,
+            0
+        };
 
 
-    std::ofstream file {filename, std::ios::binary};
-    WriteHeader(header, file);
+        std::ofstream file {filename, std::ios::binary};
+        WriteHeader(header, file);
 
-    std::size_t frame_size  = header.bits_per_sample / 8;
-    for (std::size_t offset = 0; offset < ad.data.size(); offset += frame_size) {
-        WriteRev(file, &ad.data[offset], frame_size);
+        std::size_t frame_size  = header.bits_per_sample / 8;
+        for (std::size_t offset = 0; offset < ad.data.size(); offset += frame_size) {
+            WriteRev(file, reinterpret_cast<const char*>(&ad.data[offset]), frame_size);
+        }
     }
+};
+
+extern "C" std::unique_ptr<AudioFormat> create() {
+    return std::make_unique<AIFF>();
 }
