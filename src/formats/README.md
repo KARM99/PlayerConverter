@@ -17,6 +17,6 @@ to the list `supported_formats` in `/src/formats/CMakeLists.txt`.
 Then go to `/build/src/formats` and run `cmake --build .`.
 
 
-If you want to remove support for a new format while running the program
+If you want to remove support for a format while running the program,
 remove `<format_extension>` from the list `supported_formats` in `/src/formats/CMakeLists.txt`.
 Then go to `/build/src/formats` and run `cmake --build . --target clean` then `cmake --build .`.

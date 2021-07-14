@@ -10,7 +10,8 @@ add_library(audio_data STATIC src/audio_data.cc)
 target_include_directories(audio_data PUBLIC include)
 
 add_library(audio_data_player OBJECT src/audio_data_player.cc)
-target_link_libraries(audio_data_player PUBLIC audio_data)
+target_link_libraries(audio_data_player PUBLIC portaudio_static
+                                               audio_data)
 target_include_directories(audio_data_player PUBLIC include)
 
 add_executable(player-converter src/main.cc)
